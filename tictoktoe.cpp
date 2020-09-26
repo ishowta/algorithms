@@ -9,6 +9,10 @@
 #include <random>
 #include <bitset>
 #include <boost/unordered_map.hpp>
+#include <optional>
+
+using std::cout, std::endl;
+using std::optional;
 
 struct PutEvalState
 {
@@ -20,6 +24,12 @@ struct PutEvalState
 struct BoardEvalState
 {
     std::vector<PutEvalState> putStats;
+};
+
+enum Player
+{
+    TIK = 1,
+    TOK = -1
 };
 
 struct Board
@@ -43,14 +53,24 @@ struct Board
 
         return seed;
     }
-};
 
-// tik win 1, tok win -1, 終わってない 0
-int check(Board board)
-{
-    // TODO: 実装
-    return 0;
-}
+    // tik win 1, tok win -1, 終わってない 0
+    std::optional<Player> check()
+    {
+        auto check_ = [](std::bitset<9> b) -> bool {
+            auto winList = {std::bitset<9>(0b111000000),
+                            std::bitset<9>(0b000111000),
+                            std::bitset<9>(0b000000111),
+                            std::bitset<9>(0b100010001),
+                            std::bitset<9>(0b001010100),
+                            std::bitset<9>(0b100100100),
+                            std::bitset<9>(0b010010010),
+                            std::bitset<9>(0b001001001)};
+            return std::any_of(begin(winList), end(winList), [&](std::bitset<9> x) { return (x & b) == x; });
+        };
+        return check_(tik) ? TIK : check_(tok) ? TOK : optional<Player>();
+    }
+};
 
 int main()
 {
@@ -58,7 +78,7 @@ int main()
     std::mt19937 mt(rnd());
 
     Board board;
-    int player = 1; // tik 1, tok 2
+    Player player = TIK;
     boost::unordered_map<Board, BoardEvalState> boardStats;
 
     while (true)
@@ -94,17 +114,20 @@ int main()
         player == 1 ? board.tik[pos].flip() : board.tok[pos].flip();
 
         // 勝敗が決まったら終わり
-        if (check(board) != 0)
+        if (board.check())
             break;
 
         // プレイヤー交代
-        player = player == 1 ? 2 : 1;
+        player = Player(-player);
     }
+
+    auto res = board.check();
     for (size_t i = 0; i < 9; i++)
     {
-        std::cout << (board.tik[i] ? "⚪" : board.tok[i] ? "❌" : "　");
+        cout << (board.tik[i] ? "⚪" : board.tok[i] ? "❌" : "　");
         if ((i + 1) % 3 == 0)
-            std::cout << std::endl;
+            cout << endl;
     }
-    std::cout << std::endl;
+    cout << endl;
+    cout << "Win: " << (res ? res.value() == TIK ? "⚪" : "❌" : "") << endl;
 }
