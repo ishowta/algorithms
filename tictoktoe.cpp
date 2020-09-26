@@ -1,35 +1,30 @@
-/**
- * https://qiita.com/kaityo256/items/50155365323aaaaa3b3a
- */
-
 #include <iostream>
 #include <vector>
 #include <algorithm>
 #include <array>
 #include <random>
 #include <bitset>
-#include <boost/unordered_map.hpp>
 #include <optional>
+#include <boost/unordered_map.hpp>
 
-using std::cout, std::endl;
-using std::optional;
+using std::cout, std::endl, std::optional, std::make_pair;
 
 struct PutEvalState
 {
     int index;
     int count;
-    int sumAward;
+    int sum_award;
 };
 
-struct BoardEvalState
+struct BoardState
 {
-    std::vector<PutEvalState> putStats;
+    std::vector<PutEvalState> put_states;
 };
 
 enum Player
 {
-    TIK = 1,
-    TOK = -1
+    TIK,
+    TOK
 };
 
 struct Board
@@ -54,21 +49,31 @@ struct Board
         return seed;
     }
 
-    // tik win 1, tok win -1, 終わってない 0
     std::optional<Player> check()
     {
         auto check_ = [](std::bitset<9> b) -> bool {
-            auto winList = {std::bitset<9>(0b111000000),
-                            std::bitset<9>(0b000111000),
-                            std::bitset<9>(0b000000111),
-                            std::bitset<9>(0b100010001),
-                            std::bitset<9>(0b001010100),
-                            std::bitset<9>(0b100100100),
-                            std::bitset<9>(0b010010010),
-                            std::bitset<9>(0b001001001)};
-            return std::any_of(begin(winList), end(winList), [&](std::bitset<9> x) { return (x & b) == x; });
+            auto win_list = {std::bitset<9>(0b111000000),
+                             std::bitset<9>(0b000111000),
+                             std::bitset<9>(0b000000111),
+                             std::bitset<9>(0b100010001),
+                             std::bitset<9>(0b001010100),
+                             std::bitset<9>(0b100100100),
+                             std::bitset<9>(0b010010010),
+                             std::bitset<9>(0b001001001)};
+            return std::any_of(begin(win_list), end(win_list), [&](std::bitset<9> x) { return (x & b) == x; });
         };
         return check_(tik) ? TIK : check_(tok) ? TOK : optional<Player>();
+    }
+
+    void print()
+    {
+        for (size_t i = 0; i < 9; i++)
+        {
+            cout << (this->tik[i] ? "⚪" : this->tok[i] ? "❌" : "　");
+            if ((i + 1) % 3 == 0)
+                cout << endl;
+        }
+        cout << endl;
     }
 };
 
@@ -79,55 +84,48 @@ int main()
 
     Board board;
     Player player = TIK;
-    boost::unordered_map<Board, BoardEvalState> boardStats;
+    boost::unordered_map<Board, BoardState> board_states;
 
     while (true)
     {
-        // BoardStatsを探して、無かったら新しく作る
-        auto itr = boardStats.find(board);
-        if (itr == boardStats.end())
-        {
-            BoardEvalState newBoardStats;
-            newBoardStats.putStats = {};
+        // board_statesを探して、無かったら新しく作る
+        auto &board_state = ([&]() -> BoardState & {
+            auto res = board_states.find(board);
+            if (res != board_states.end())
+                return std::get<1>(*res);
+
+            BoardState newboard_state;
+
             for (int i = 0; i < 9; i++)
             {
                 if (board.tik[i] == 0 && board.tok[i] == 0)
-                    newBoardStats.putStats.push_back(PutEvalState{i, 0, 0});
+                    newboard_state.put_states.push_back(PutEvalState{i, 0, 0});
             }
 
-            auto res = boardStats.insert(std::make_pair(board, newBoardStats));
-            itr = res.first;
-        }
+            auto ref = board_states.insert(make_pair(board, newboard_state));
+            return std::get<1>(*ref.first);
+        })();
 
-        auto &boardEvalState = (*itr).second;
-
-        auto &putStats = boardEvalState.putStats;
+        auto &put_states = board_state.put_states;
 
         // 置くとこが無くなったら終わり
-        if (putStats.size() == 0)
+        if (put_states.size() == 0)
             break;
 
         // ランダムに置く
-        std::uniform_int_distribution<> rand(0, putStats.size() - 1);
-        auto &posState = putStats.at(rand(mt));
-        int pos = posState.index;
-        player == 1 ? board.tik[pos].flip() : board.tok[pos].flip();
+        std::uniform_int_distribution<> rand(0, put_states.size() - 1);
+        int pos = put_states.at(rand(mt)).index;
+        player == TIK ? board.tik[pos].flip() : board.tok[pos].flip();
 
         // 勝敗が決まったら終わり
         if (board.check())
             break;
 
         // プレイヤー交代
-        player = Player(-player);
+        player = player == TIK ? TOK : TIK;
     }
 
     auto res = board.check();
-    for (size_t i = 0; i < 9; i++)
-    {
-        cout << (board.tik[i] ? "⚪" : board.tok[i] ? "❌" : "　");
-        if ((i + 1) % 3 == 0)
-            cout << endl;
-    }
-    cout << endl;
+    board.print();
     cout << "Win: " << (res ? res.value() == TIK ? "⚪" : "❌" : "") << endl;
 }
