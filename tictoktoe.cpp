@@ -5,7 +5,7 @@
 #include <random>
 #include <bitset>
 #include <optional>
-#include <boost/unordered_map.hpp>
+#include <unordered_map>
 
 using std::cout, std::endl, std::optional, std::make_pair;
 
@@ -39,17 +39,7 @@ struct Board
         return tik == rhs.tik && tok == rhs.tok;
     }
 
-    friend std::size_t hash_value(Board const &rhs)
-    {
-        std::size_t seed = 0;
-        std::hash<std::bitset<9>> hash_fn;
-        boost::hash_combine(seed, hash_fn(rhs.tik));
-        boost::hash_combine(seed, hash_fn(rhs.tok));
-
-        return seed;
-    }
-
-    std::optional<Player> check()
+    std::optional<Player> check() const
     {
         auto check_ = [](std::bitset<9> b) -> bool {
             auto win_list = {std::bitset<9>(0b111000000),
@@ -65,7 +55,7 @@ struct Board
         return check_(tik) ? TIK : check_(tok) ? TOK : optional<Player>();
     }
 
-    void print()
+    void print() const
     {
         for (size_t i = 0; i < 9; i++)
         {
@@ -77,6 +67,17 @@ struct Board
     }
 };
 
+struct BoardStateHash
+{
+    typedef std::size_t result_type;
+
+    std::size_t operator()(Board const &rhs) const
+    {
+        std::hash<std::bitset<9>> hash_fn;
+        return hash_fn(rhs.tik) ^ hash_fn(rhs.tok);
+    }
+};
+
 int main()
 {
     std::random_device rnd;
@@ -84,7 +85,7 @@ int main()
 
     Board board;
     Player player = TIK;
-    boost::unordered_map<Board, BoardState> board_states;
+    std::unordered_map<Board, BoardState, BoardStateHash> board_states;
 
     while (true)
     {
