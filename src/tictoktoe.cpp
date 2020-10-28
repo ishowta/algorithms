@@ -21,9 +21,11 @@ struct BoardState {
 
 enum Player { TIK, TOK };
 
+typedef std::bitset<9> BoardBit;
+
 struct Board {
-    std::bitset<9> tik;
-    std::bitset<9> tok;
+    BoardBit tik;
+    BoardBit tok;
 
     Board() : tik(0), tok(0) {}
 
@@ -32,14 +34,14 @@ struct Board {
     }
 
     std::optional<Player> check() const {
-        auto check_ = [](std::bitset<9> b) -> bool {
-            auto win_list = {
-                std::bitset<9>(0b111000000), std::bitset<9>(0b000111000),
-                std::bitset<9>(0b000000111), std::bitset<9>(0b100010001),
-                std::bitset<9>(0b001010100), std::bitset<9>(0b100100100),
-                std::bitset<9>(0b010010010), std::bitset<9>(0b001001001)};
-            return std::any_of(begin(win_list), end(win_list),
-                               [&](std::bitset<9> x) { return (x & b) == x; });
+        auto check_ = [](BoardBit b) -> bool {
+            auto win_pattern_list = {
+                BoardBit(0b111000000), BoardBit(0b000111000),
+                BoardBit(0b000000111), BoardBit(0b100010001),
+                BoardBit(0b001010100), BoardBit(0b100100100),
+                BoardBit(0b010010010), BoardBit(0b001001001)};
+            return std::any_of(begin(win_pattern_list), end(win_pattern_list),
+                               [&](BoardBit x) { return (x & b) == x; });
         };
         return check_(tik) ? TIK : check_(tok) ? TOK : optional<Player>();
     }
@@ -58,7 +60,7 @@ struct BoardStateHash {
     typedef std::size_t result_type;
 
     std::size_t operator()(Board const &rhs) const {
-        std::hash<std::bitset<9>> hash_fn;
+        std::hash<BoardBit> hash_fn;
         return hash_fn(rhs.tik) ^ hash_fn(rhs.tok);
     }
 };
